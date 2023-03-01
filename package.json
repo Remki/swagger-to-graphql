@@ -13,8 +13,10 @@
   "dependencies": {
     "@apidevtools/json-schema-ref-parser": "^7.1.0",
     "@types/json-schema": "^7.0.3",
-    "graphql": "^16.0.0",
     "yargs": "^14.0.0"
+  },
+  "peerDependencies": {
+    "graphql": "^16.0.0"
   },
   "devDependencies": {
     "@types/chai": "^4.2.0",
