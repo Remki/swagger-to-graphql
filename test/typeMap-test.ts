@@ -8,8 +8,6 @@ import {
 } from 'graphql';
 import { jsonSchemaTypeToGraphQL } from '../src/typeMap';
 
-const swaggerSchema = { paths: {} };
-
 describe('typeMap', () => {
   describe('jsonSchemaTypeToGraphQL', () => {
     it('should give an unsupported type for files', () => {
@@ -22,7 +20,6 @@ describe('typeMap', () => {
         true,
         {},
         false,
-        swaggerSchema as any,
       ) as GraphQLInputObjectType;
 
       expect(graphqlFileType).to.be.instanceOf(GraphQLInputObjectType);
@@ -47,7 +44,6 @@ describe('typeMap', () => {
         true,
         {},
         false,
-        swaggerSchema as any,
       ) as GraphQLList<GraphQLNonNull<GraphQLInputObjectType>>;
 
       expect(graphqlList).to.be.instanceOf(GraphQLList);
@@ -83,7 +79,6 @@ describe('typeMap', () => {
         true,
         {},
         false,
-        swaggerSchema as any,
       ) as GraphQLList<GraphQLNonNull<GraphQLScalarType>>;
 
       expect(graphqlList).to.be.instanceOf(GraphQLList);
