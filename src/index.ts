@@ -64,7 +64,7 @@ const getFields = <TContext>(
       );
       const gType: GraphQLFieldConfig<any, any> = {
         type,
-        description: endpoint.description,
+        description: endpoint.description || undefined,
         args: mapParametersToFields(endpoint.parameters, operationId, gqlTypes),
         resolve: async (
           _source: any,

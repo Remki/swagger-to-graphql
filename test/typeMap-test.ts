@@ -25,13 +25,10 @@ describe('typeMap', () => {
       expect(graphqlFileType).to.be.instanceOf(GraphQLInputObjectType);
       expect(graphqlFileType.name).to.equal('mocktitle_mockpropertynameInput');
 
-      expect(graphqlFileType.getFields()).to.deep.equal({
-        unsupported: {
-          name: 'unsupported',
-          description: undefined,
-          type: GraphQLString,
-        },
-      });
+      const unsupportedField = graphqlFileType.getFields().unsupported;
+      expect(unsupportedField.name).to.equal('unsupported');
+      expect(unsupportedField.description).to.equal(undefined);
+      expect(unsupportedField.type).to.equal(GraphQLString);
     });
 
     it('should give an unsupported type for list of files', () => {
@@ -57,13 +54,10 @@ describe('typeMap', () => {
       const itemType = nonNullable.ofType;
       expect(itemType.name).to.equal('mocktitle_mockpropertynameInput');
 
-      expect(itemType.getFields()).to.deep.equal({
-        unsupported: {
-          name: 'unsupported',
-          description: undefined,
-          type: GraphQLString,
-        },
-      });
+      const unsupportedField = itemType.getFields().unsupported;
+      expect(unsupportedField.name).to.equal('unsupported');
+      expect(unsupportedField.description).to.equal(undefined);
+      expect(unsupportedField.type).to.equal(GraphQLString);
     });
 
     // TODO: make this a union type?

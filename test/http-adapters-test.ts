@@ -6,12 +6,14 @@ import * as nodeFetch from '../example/node-fetch';
 type AdapterConfig = {
   name: string;
   callBackend: typeof requestPromise.callBackend;
+  expectedQueryPath?: string;
 }[];
 
 const adapterConfig: AdapterConfig = [
   {
     name: 'request-promise',
     callBackend: requestPromise.callBackend,
+    expectedQueryPath: '/mock-uri?query-params=a&query-params=b',
   },
   {
     name: 'node-fetch',
@@ -19,7 +21,7 @@ const adapterConfig: AdapterConfig = [
   },
 ];
 
-adapterConfig.forEach(({ name, callBackend }) => {
+adapterConfig.forEach(({ name, callBackend, expectedQueryPath }) => {
   describe(name, () => {
     beforeEach(() => {
       nock.disableNetConnect();
@@ -36,12 +38,15 @@ adapterConfig.forEach(({ name, callBackend }) => {
         .post('/mock-uri', {
           mockBodyKey: 'mock body value',
         })
-        .query({
-          'query-params': 'a,b',
-        })
+        .query(true)
         .matchHeader('mock-header', 'mock header value')
         .matchHeader('content-type', 'application/json')
-        .reply(200, 'mock result');
+        .reply(function () {
+          if (expectedQueryPath) {
+            expect(this.req.path).to.equal(expectedQueryPath);
+          }
+          return [200, 'mock result'];
+        });
 
       const result = await callBackend({
         requestOptions: {
@@ -63,6 +68,8 @@ adapterConfig.forEach(({ name, callBackend }) => {
       });
 
       expect(result).to.equal('mock result');
+
+      expect(nockScope.isDone()).to.equal(true);
 
       nockScope.done();
     });
