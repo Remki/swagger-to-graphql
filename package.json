@@ -1,6 +1,6 @@
 {
   "name": "swagger-to-graphql",
-  "version": "4.0.2",
+  "version": "4.1.0",
   "author": "Roman Krivtsov",
   "engines": {
     "node": ">=18.20.0 <20 || >=20.12.1"
