@@ -1,5 +1,5 @@
 import requestPromise from 'request-promise';
-import { JSONSchema } from 'json-schema-ref-parser';
+import { JSONSchema } from '@apidevtools/json-schema-ref-parser';
 import { Options } from '../src';
 
 export function createTestOptions(

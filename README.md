@@ -92,6 +92,31 @@ You can use the library just to convert schemas without actually running server
 npx swagger-to-graphql --swagger-schema=/path/to/swagger_schema.json > ./types.graphql
 ```
 
+## Development
+
+Supported Node.js versions:
+
+- `>=18.20.0 <20`
+- `>=20.12.1`
+
+Install dependencies:
+
+```sh
+npm install
+```
+
+Run the test suite:
+
+```sh
+npm test
+```
+
+Build the library:
+
+```sh
+npm run build
+```
+
 ## [Apollo Federation](https://www.apollographql.com/docs/apollo-server/federation/introduction/)
 
 Apollo federation support can be added by using

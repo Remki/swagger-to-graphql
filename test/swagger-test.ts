@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 import { expect } from 'chai';
-import { assertType } from 'typescript-is';
-import refParser from 'json-schema-ref-parser';
+import refParser from '@apidevtools/json-schema-ref-parser';
 import {
   getServerPath,
   getParamDetails,
@@ -9,7 +8,6 @@ import {
   SwaggerSchema,
   Param,
 } from '../src/swagger';
-import { EndpointParam } from '../src/getRequestOptions';
 import { ArraySchema } from '../src/json-schema';
 
 describe('swagger', () => {
@@ -92,21 +90,18 @@ describe('swagger', () => {
   describe('getParameterDetails', () => {
     it('should get details for openapi 2 and 3', async () => {
       function testParameter(parameter: Param): void {
-        try {
-          assertType<Param>(parameter);
-        } catch (e) {
-          console.log('Not a Param:', parameter);
-          throw e;
-        }
-        let paramDetails;
-        try {
-          paramDetails = getParamDetails(parameter);
-          assertType<EndpointParam>(paramDetails);
-        } catch (e) {
-          console.log('Not EndpointParam:', JSON.stringify(paramDetails));
-          console.log('parameter:', parameter);
-          throw e;
-        }
+        const paramDetails = getParamDetails(parameter);
+        expect(paramDetails.name).to.be.a('string');
+        expect(paramDetails.swaggerName).to.be.a('string');
+        expect(paramDetails.type).to.be.oneOf([
+          'header',
+          'query',
+          'formData',
+          'path',
+          'body',
+        ]);
+        expect(paramDetails.required).to.be.a('boolean');
+        expect(paramDetails.jsonSchema).to.be.an('object');
       }
       const openapi2Schema = (await refParser.dereference(
         `test/fixtures/petstore.yaml`,

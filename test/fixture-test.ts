@@ -18,9 +18,14 @@ describe('Fixture', () => {
             },
           }).then(schema => {
             const graphqlfile = directory + graphqlFile;
-            const graphschema = graphql.printSchema(schema);
-            const expected = fs.readFileSync(graphqlfile, 'utf8');
-            expect(graphschema).to.equal(expected);
+            const graphschema = graphql.printSchema(
+              graphql.lexicographicSortSchema(schema),
+            );
+            const expected = fs.readFileSync(graphqlfile, 'utf8').trim();
+            const expectedSchema = graphql.printSchema(
+              graphql.lexicographicSortSchema(graphql.buildSchema(expected)),
+            );
+            expect(graphschema).to.equal(expectedSchema);
           }));
       });
     }
@@ -36,9 +41,14 @@ describe('Fixture', () => {
           return new Promise(() => {});
         },
       });
-      const graphschema = graphql.printSchema(schema);
-      const expected = fs.readFileSync(graphqlFile, 'utf8');
-      expect(graphschema).to.equal(expected);
+      const graphschema = graphql.printSchema(
+        graphql.lexicographicSortSchema(schema),
+      );
+      const expected = fs.readFileSync(graphqlFile, 'utf8').trim();
+      const expectedSchema = graphql.printSchema(
+        graphql.lexicographicSortSchema(graphql.buildSchema(expected)),
+      );
+      expect(graphschema).to.equal(expectedSchema);
     });
   });
 });

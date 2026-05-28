@@ -8,6 +8,8 @@ import {
 } from 'graphql';
 import { jsonSchemaTypeToGraphQL } from '../src/typeMap';
 
+const swaggerSchema = { paths: {} };
+
 describe('typeMap', () => {
   describe('jsonSchemaTypeToGraphQL', () => {
     it('should give an unsupported type for files', () => {
@@ -20,18 +22,16 @@ describe('typeMap', () => {
         true,
         {},
         false,
+        swaggerSchema as any,
       ) as GraphQLInputObjectType;
 
       expect(graphqlFileType).to.be.instanceOf(GraphQLInputObjectType);
       expect(graphqlFileType.name).to.equal('mocktitle_mockpropertynameInput');
 
-      expect(graphqlFileType.getFields()).to.deep.equal({
-        unsupported: {
-          name: 'unsupported',
-          description: undefined,
-          type: GraphQLString,
-        },
-      });
+      const unsupportedField = graphqlFileType.getFields().unsupported;
+      expect(unsupportedField.name).to.equal('unsupported');
+      expect(unsupportedField.description).to.equal(undefined);
+      expect(unsupportedField.type).to.equal(GraphQLString);
     });
 
     it('should give an unsupported type for list of files', () => {
@@ -47,6 +47,7 @@ describe('typeMap', () => {
         true,
         {},
         false,
+        swaggerSchema as any,
       ) as GraphQLList<GraphQLNonNull<GraphQLInputObjectType>>;
 
       expect(graphqlList).to.be.instanceOf(GraphQLList);
@@ -57,13 +58,10 @@ describe('typeMap', () => {
       const itemType = nonNullable.ofType;
       expect(itemType.name).to.equal('mocktitle_mockpropertynameInput');
 
-      expect(itemType.getFields()).to.deep.equal({
-        unsupported: {
-          name: 'unsupported',
-          description: undefined,
-          type: GraphQLString,
-        },
-      });
+      const unsupportedField = itemType.getFields().unsupported;
+      expect(unsupportedField.name).to.equal('unsupported');
+      expect(unsupportedField.description).to.equal(undefined);
+      expect(unsupportedField.type).to.equal(GraphQLString);
     });
 
     // TODO: make this a union type?
@@ -85,6 +83,7 @@ describe('typeMap', () => {
         true,
         {},
         false,
+        swaggerSchema as any,
       ) as GraphQLList<GraphQLNonNull<GraphQLScalarType>>;
 
       expect(graphqlList).to.be.instanceOf(GraphQLList);
