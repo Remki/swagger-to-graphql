@@ -10,6 +10,10 @@ interface CommonSchema {
   title?: string;
 }
 
+export interface RefSchema extends CommonSchema {
+  $ref: string;
+}
+
 export interface BodySchema extends CommonSchema {
   in: 'body';
   schema: JSONSchemaType;
@@ -44,7 +48,7 @@ export interface ScalarSchema extends CommonSchema {
   required?: boolean;
 }
 
-export type JSONSchemaNoBody = ObjectSchema | ArraySchema | ScalarSchema;
+export type JSONSchemaNoBody = RefSchema | ObjectSchema | ArraySchema | ScalarSchema;
 
 export type JSONSchemaType = BodySchema | JSONSchemaNoBody;
 
@@ -58,11 +62,16 @@ export const isObjectType = (
   jsonSchema: JSONSchemaType,
 ): jsonSchema is ObjectSchema =>
   !isBodyType(jsonSchema) &&
+  !isRefType(jsonSchema) &&
   (Object.keys(jsonSchema).includes('properties') ||
     jsonSchema.type === 'object');
+
+export const isRefType = (jsonSchema: JSONSchemaType): jsonSchema is RefSchema =>
+  !isBodyType(jsonSchema) && Object.keys(jsonSchema).includes('$ref');
 
 export const isArrayType = (
   jsonSchema: JSONSchemaType,
 ): jsonSchema is ArraySchema =>
   !isBodyType(jsonSchema) &&
+  !isRefType(jsonSchema) &&
   (Object.keys(jsonSchema).includes('items') || jsonSchema.type === 'array');

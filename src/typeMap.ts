@@ -20,9 +20,11 @@ import {
   isArrayType,
   isBodyType,
   isObjectType,
+  isRefType,
   JSONSchemaType,
 } from './json-schema';
 import { EndpointParam } from './getRequestOptions';
+import { SwaggerSchema } from './swagger';
 
 export type GraphQLType = GraphQLOutputType | GraphQLInputType | GraphQLList<GraphQLNonNull<GraphQLType>>;;
 
@@ -44,6 +46,38 @@ const jsonType = new GraphQLScalarType({
   },
 });
 
+const refRoots = ['definitions', 'components/schemas'];
+
+const getRefSegments = (ref: string): string[] => {
+  if (!ref.startsWith('#/')) {
+    throw new Error(`Unsupported ref format: ${ref}`);
+  }
+  return ref.slice(2).split('/');
+};
+
+const resolveSchemaRef = (
+  swaggerSchema: SwaggerSchema,
+  ref: string,
+): JSONSchemaType => {
+  const resolved = getRefSegments(ref).reduce((result: unknown, segment) => {
+    if (!result || typeof result !== 'object' || !(segment in result)) {
+      throw new Error(`Unable to resolve ref ${ref}`);
+    }
+    return (result as { [key: string]: unknown })[segment];
+  }, swaggerSchema as unknown);
+
+  return resolved as JSONSchemaType;
+};
+
+const getTypeNameFromRef = (ref: string): string => {
+  const segments = getRefSegments(ref);
+  const refRoot = segments.slice(0, -1).join('/');
+  if (!refRoots.includes(refRoot)) {
+    throw new Error(`Unsupported ref target: ${ref}`);
+  }
+  return segments[segments.length - 1];
+};
+
 function getPrimitiveType(
   format: string | undefined,
   type: keyof typeof primitiveTypes,
@@ -63,6 +97,7 @@ export const jsonSchemaTypeToGraphQL = <IsInputType extends boolean>(
   isInputType: IsInputType,
   gqlTypes: GraphQLTypeMap,
   required: boolean,
+  swaggerSchema: SwaggerSchema,
 ): IsInputType extends true ? GraphQLInputType : GraphQLOutputType => {
   const baseType = ((): GraphQLType => {
     if (isBodyType(jsonSchema)) {
@@ -73,6 +108,16 @@ export const jsonSchemaTypeToGraphQL = <IsInputType extends boolean>(
         isInputType,
         gqlTypes,
         required,
+        swaggerSchema,
+      );
+    }
+    if (isRefType(jsonSchema)) {
+      return createGraphQLType(
+        resolveSchemaRef(swaggerSchema, jsonSchema.$ref),
+        getTypeNameFromRef(jsonSchema.$ref),
+        isInputType,
+        gqlTypes,
+        swaggerSchema,
       );
     }
     if (isObjectType(jsonSchema) || isArrayType(jsonSchema)) {
@@ -82,6 +127,7 @@ export const jsonSchemaTypeToGraphQL = <IsInputType extends boolean>(
         `${title}_${propertyName}`,
         isInputType,
         gqlTypes,
+        swaggerSchema,
       );
     }
 
@@ -96,6 +142,7 @@ export const jsonSchemaTypeToGraphQL = <IsInputType extends boolean>(
         `${title}_${propertyName}`,
         isInputType,
         gqlTypes,
+        swaggerSchema,
       );
     }
 
@@ -125,6 +172,7 @@ export const getTypeFields = (
   title: string,
   isInputType: boolean,
   gqlTypes: GraphQLTypeMap,
+  swaggerSchema: SwaggerSchema,
 ):
   | Thunk<GraphQLInputFieldConfigMap>
   | Thunk<GraphQLFieldConfigMap<any, any>> => {
@@ -151,6 +199,7 @@ export const getTypeFields = (
             jsonSchema.required &&
             jsonSchema.required.includes(propertyName)
           ),
+          swaggerSchema,
         );
         return {
           ...previousValue,
@@ -170,7 +219,18 @@ export const createGraphQLType = (
   title: string,
   isInputType: boolean,
   gqlTypes: GraphQLTypeMap,
+  swaggerSchema: SwaggerSchema,
 ): GraphQLType => {
+  if (jsonSchema && isRefType(jsonSchema)) {
+    return createGraphQLType(
+      resolveSchemaRef(swaggerSchema, jsonSchema.$ref),
+      getTypeNameFromRef(jsonSchema.$ref),
+      isInputType,
+      gqlTypes,
+      swaggerSchema,
+    );
+  }
+
   title = (jsonSchema && jsonSchema.title) || title;
   title = makeValidName(title);
 
@@ -198,7 +258,11 @@ export const createGraphQLType = (
     const itemsSchema = Array.isArray(jsonSchema.items)
       ? jsonSchema.items[0]
       : jsonSchema.items;
-    if (isObjectType(itemsSchema) || isArrayType(itemsSchema)) {
+    if (
+      isRefType(itemsSchema) ||
+      isObjectType(itemsSchema) ||
+      isArrayType(itemsSchema)
+    ) {
       return new GraphQLList(
         new GraphQLNonNull(
           createGraphQLType(
@@ -206,6 +270,7 @@ export const createGraphQLType = (
             `${title}_items`,
             isInputType,
             gqlTypes,
+            swaggerSchema,
           ),
         ),
       );
@@ -224,6 +289,7 @@ export const createGraphQLType = (
             title,
             isInputType,
             gqlTypes,
+            swaggerSchema,
           ),
         ),
       );
@@ -243,7 +309,13 @@ export const createGraphQLType = (
   }
 
   const { description } = jsonSchema;
-  const fields = getTypeFields(jsonSchema, title, isInputType, gqlTypes);
+  const fields = getTypeFields(
+    jsonSchema,
+    title,
+    isInputType,
+    gqlTypes,
+    swaggerSchema,
+  );
   let result;
   if (isInputType) {
     result = new GraphQLInputObjectType({
@@ -266,6 +338,7 @@ export const mapParametersToFields = (
   parameters: EndpointParam[],
   typeName: string,
   gqlTypes: GraphQLTypeMap,
+  swaggerSchema: SwaggerSchema,
 ): GraphQLFieldConfigArgumentMap => {
   return parameters.reduce((res: GraphQLFieldConfigArgumentMap, param) => {
     const type = jsonSchemaTypeToGraphQL(
@@ -275,6 +348,7 @@ export const mapParametersToFields = (
       true,
       gqlTypes,
       param.required,
+      swaggerSchema,
     );
     res[param.name] = {
       type,

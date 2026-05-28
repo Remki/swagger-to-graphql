@@ -46,6 +46,7 @@ const getFields = <TContext>(
   endpoints: Endpoints,
   isMutation: boolean,
   gqlTypes: GraphQLTypeMap,
+  swaggerSchema: SwaggerSchema,
   { callBackend }: Options<TContext>,
 ): GraphQLFieldConfigMap<any, any> => {
   return Object.keys(endpoints)
@@ -61,11 +62,17 @@ const getFields = <TContext>(
         false,
         gqlTypes,
         true,
+        swaggerSchema,
       );
       const gType: GraphQLFieldConfig<any, any> = {
         type,
         description: endpoint.description || undefined,
-        args: mapParametersToFields(endpoint.parameters, operationId, gqlTypes),
+        args: mapParametersToFields(
+          endpoint.parameters,
+          operationId,
+          gqlTypes,
+          swaggerSchema,
+        ),
         resolve: async (
           _source: any,
           args: GraphQLParameters,
@@ -87,10 +94,17 @@ const getFields = <TContext>(
 
 const schemaFromEndpoints = <TContext>(
   endpoints: Endpoints,
+  swaggerSchema: SwaggerSchema,
   options: Options<TContext>,
 ): GraphQLSchema => {
   const gqlTypes = {};
-  const queryFields = getFields(endpoints, false, gqlTypes, options);
+  const queryFields = getFields(
+    endpoints,
+    false,
+    gqlTypes,
+    swaggerSchema,
+    options,
+  );
   if (!Object.keys(queryFields).length) {
     throw new Error('Did not find any GET endpoints');
   }
@@ -103,7 +117,13 @@ const schemaFromEndpoints = <TContext>(
     query: rootType,
   };
 
-  const mutationFields = getFields(endpoints, true, gqlTypes, options);
+  const mutationFields = getFields(
+    endpoints,
+    true,
+    gqlTypes,
+    swaggerSchema,
+    options,
+  );
   if (Object.keys(mutationFields).length) {
     graphQLSchema.mutation = new GraphQLObjectType({
       name: 'Mutation',
@@ -129,12 +149,12 @@ export interface Options<TContext> {
 export const createSchema = async <TContext>(
   options: Options<TContext>,
 ): Promise<GraphQLSchema> => {
-  const schemaWithoutReferences = (await refParser.dereference(
+  const schemaWithoutReferences = (await refParser.bundle(
     options.swaggerSchema,
   )) as SwaggerSchema;
   const swaggerSchema = addTitlesToJsonSchemas(schemaWithoutReferences);
   const endpoints = getAllEndPoints(swaggerSchema);
-  return schemaFromEndpoints(endpoints, options);
+  return schemaFromEndpoints(endpoints, swaggerSchema, options);
 };
 
 export default createSchema;

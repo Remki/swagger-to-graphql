@@ -1,0 +1,14 @@
+type Category {
+  items: [CategoryItem!]
+  name: String
+}
+
+type CategoryItem {
+  category: Category
+  label: String
+}
+
+type Query {
+  """Retrieves an indirect circular structure"""
+  get_swagger_graphql_indirect_circular: Category!
+}

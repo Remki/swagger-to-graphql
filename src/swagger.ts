@@ -1,4 +1,8 @@
-import { JSONSchemaType, JSONSchemaTypes, isObjectType } from './json-schema';
+import {
+  JSONSchemaType,
+  JSONSchemaTypes,
+  isObjectType,
+} from './json-schema';
 import {
   EndpointParam,
   getRequestOptions,
@@ -8,6 +12,16 @@ import {
 export interface GraphQLParameters {
   [key: string]: any;
 }
+
+const getRefSegments = (ref: string): string[] => {
+  if (!ref.startsWith('#/')) {
+    throw new Error(`Unsupported ref format: ${ref}`);
+  }
+  return ref.slice(2).split('/');
+};
+
+const hasRef = (value: unknown): value is { $ref: string } =>
+  !!value && typeof value === 'object' && '$ref' in value;
 
 const replaceOddChars = (str: string): string =>
   str.replace(/[^_a-zA-Z0-9]/g, '_');
@@ -291,7 +305,51 @@ export interface SwaggerSchema {
   definitions?: {
     [name: string]: JSONSchemaType;
   };
+  parameters?: {
+    [name: string]: Param;
+  };
 }
+
+const resolveSwaggerRef = <T>(schema: SwaggerSchema, ref: string): T => {
+  const resolved = getRefSegments(ref).reduce((result: unknown, segment) => {
+    if (!result || typeof result !== 'object' || !(segment in result)) {
+      throw new Error(`Unable to resolve ref ${ref}`);
+    }
+    return (result as { [key: string]: unknown })[segment];
+  }, schema as unknown);
+
+  return resolved as T;
+};
+
+const resolveParam = (schema: SwaggerSchema, param: Param): Param => {
+  if (!hasRef(param)) {
+    return param;
+  }
+
+  return resolveSwaggerRef<Param>(schema, param.$ref);
+};
+
+const resolveRequestBody = (
+  schema: SwaggerSchema,
+  requestBody: OA3BodyParam | { $ref: string },
+): OA3BodyParam => {
+  if (!hasRef(requestBody)) {
+    return requestBody;
+  }
+
+  return resolveSwaggerRef<OA3BodyParam>(schema, requestBody.$ref);
+};
+
+const resolveResponseSchema = (
+  schema: SwaggerSchema,
+  response: JSONSchemaType,
+): JSONSchemaType => {
+  if (!hasRef(response)) {
+    return response;
+  }
+
+  return resolveSwaggerRef<JSONSchemaType>(schema, response.$ref);
+};
 
 /**
  * Go through schema and grab routes
@@ -324,12 +382,16 @@ export const getAllEndPoints = (schema: SwaggerSchema): Endpoints => {
       }
 
       const bodyParams = operationObject.requestBody
-        ? getParamDetailsFromRequestBody(operationObject.requestBody)
+        ? getParamDetailsFromRequestBody(
+            resolveRequestBody(schema, operationObject.requestBody as any),
+          )
         : [];
 
       const parameterDetails = [
         ...(operationObject.parameters
-          ? operationObject.parameters.map(param => getParamDetails(param))
+          ? operationObject.parameters.map(param =>
+              getParamDetails(resolveParam(schema, param)),
+            )
           : []),
         ...bodyParams,
       ];
@@ -337,7 +399,10 @@ export const getAllEndPoints = (schema: SwaggerSchema): Endpoints => {
       const endpoint: Endpoint = {
         parameters: parameterDetails,
         description: operationObject.description,
-        response: getSuccessResponse(operationObject.responses),
+        response: (() => {
+          const response = getSuccessResponse(operationObject.responses);
+          return response ? resolveResponseSchema(schema, response) : response;
+        })(),
         getRequestOptions: (parameterValues: GraphQLParameters) => {
           return getRequestOptions({
             parameterDetails,
@@ -348,7 +413,9 @@ export const getAllEndPoints = (schema: SwaggerSchema): Endpoints => {
             formData: operationObject.consumes
               ? !operationObject.consumes.includes('application/json')
               : operationObject.requestBody
-              ? isFormdataRequest(operationObject.requestBody)
+              ? isFormdataRequest(
+                  resolveRequestBody(schema, operationObject.requestBody as any),
+                )
               : false,
           });
         },
